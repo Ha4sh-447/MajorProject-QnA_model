@@ -1,0 +1,11 @@
+torch
+transformers
+datasets
+peft
+bitsandbytes
+accelerate
+sentencepiece
+sentence-transformers
+pandas
+streamlit
+PyPDF2
