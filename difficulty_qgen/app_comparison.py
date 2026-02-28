@@ -17,16 +17,19 @@ st.set_page_config(
 # ─── Custom Styles ───
 st.markdown("""
 <style>
-    .stApp { background-color: #f8f9fa; }
+    .stApp { background-color: #f8f9fa; color: #1f2937; }
     .main { padding: 2rem; }
     .stSlider { padding-bottom: 2rem; }
-    .st-emotion-cache-16idsys p { font-size: 1.1rem; }
+    h1, h2, h3, h4, p, label { color: #111827 !important; }
+    .st-emotion-cache-16idsys p { font-size: 1.1rem; color: #1f2937; }
+    .stSidebar { background-color: #ffffff; border-right: 1px solid #e5e7eb; }
+    .stSidebar [data-testid="stMarkdownContainer"] p { color: #374151 !important; }
     .bloom-tag {
         display: inline-block;
         padding: 0.2rem 0.6rem;
         border-radius: 4px;
         font-weight: bold;
-        color: white;
+        color: #ffffff !important;
         margin-right: 0.5rem;
     }
     .tag-remember { background-color: #4A90E2; }
@@ -36,7 +39,7 @@ st.markdown("""
     .tag-evaluate { background-color: #BD10E0; }
     .tag-create { background-color: #9013FE; }
 </style>
-""", unsafe_allow_stdio=True)
+""", unsafe_allow_html=True)
 
 # ─── Model Configs ───
 MODEL_CONFIGS = {
