@@ -6,6 +6,10 @@ import random
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from peft import PeftModel
 import PyPDF2
+from rephrase_with_gemini import BloomsGeminiRephraser
+
+# Hardcoded API key provided by user for demonstration
+GEMINI_API_KEY = "AIzaSyCExJ4LKcB7JKkcnpHzgiRKU0MPn3vMtgU"
 
 # ─── Page Config ───
 st.set_page_config(
@@ -98,11 +102,27 @@ def load_model(model_path):
     model.eval()
     return model, tokenizer, device
 
-def extract_text_from_pdf(pdf_file):
+def init_gemini_rephraser(api_key):
+    # No @st.cache_resource here so it forces a fresh load of the new google-genai logic
+    try:
+        from rephrase_with_gemini import BloomsGeminiRephraser
+        return BloomsGeminiRephraser(api_key=api_key)
+    except Exception as e:
+        st.sidebar.error(f"Failed to load Gemini Rephraser: {e}")
+        return None
+
+def extract_text_from_pdf(pdf_file, start_page=0, skip_last=0):
     pdf_reader = PyPDF2.PdfReader(pdf_file)
     text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text()
+    total_pages = len(pdf_reader.pages)
+    
+    end_page = total_pages - skip_last
+    # Safety bounds
+    start_page = max(0, min(start_page, total_pages - 1))
+    end_page = max(start_page + 1, min(end_page, total_pages))
+    
+    for i in range(start_page, end_page):
+        text += pdf_reader.pages[i].extract_text() + "\n"
     return text
 
 def chunk_text(text, max_chars=800):
@@ -163,8 +183,15 @@ tab_upload, tab_text = st.tabs(["📄 Upload PDF", "✍️ Paste Text"])
 source_text = ""
 with tab_upload:
     uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+    
+    col_opt1, col_opt2 = st.columns(2)
+    with col_opt1:
+        start_page = st.number_input("Start Page (0-indexed)", min_value=0, value=0)
+    with col_opt2:
+        skip_last = st.number_input("Pages to Skip at End", min_value=0, value=0)
+        
     if uploaded_file:
-        source_text = extract_text_from_pdf(uploaded_file)
+        source_text = extract_text_from_pdf(uploaded_file, start_page=start_page, skip_last=skip_last)
         st.success(f"Extracted {len(source_text)} characters from PDF")
 
 with tab_text:
@@ -197,6 +224,7 @@ if source_text:
             else:
                 with st.spinner("Loading AI model..."):
                     model, tokenizer, device = load_model(config["path"])
+                    rephraser = init_gemini_rephraser(GEMINI_API_KEY)
                 
                 chunks = chunk_text(source_text)
                 # Randomly pick chunks to generate from
@@ -207,7 +235,14 @@ if source_text:
                     with st.status(f"Generating question {i+1}...", expanded=True):
                         # Show chunk preview
                         st.caption(f"Source: {chunk[:100]}...")
-                        question = generate_question(model, tokenizer, device, chunk, level_name)
+                        raw_question = generate_question(model, tokenizer, device, chunk, level_name)
+                        
+                        # Use Gemini to rephrase if available
+                        if rephraser:
+                            st.caption("_Refining language with Gemini..._")
+                            question = rephraser.rephrase(chunk, raw_question)
+                        else:
+                            question = raw_question
                         
                         # Extract tag for styling if present
                         tag_match = re.match(r'^\[(.*?)\]', question)
