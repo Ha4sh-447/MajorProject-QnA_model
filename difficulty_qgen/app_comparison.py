@@ -6,10 +6,13 @@ import random
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from peft import PeftModel
 import PyPDF2
-from rephrase_with_gemini import BloomsGeminiRephraser
+from rephrase_with_mistral import BloomsMistralRephraser
 
-# Hardcoded API key provided by user for demonstration
-GEMINI_API_KEY = "AIzaSyCExJ4LKcB7JKkcnpHzgiRKU0MPn3vMtgU"
+# Load API key securely from Streamlit secrets or environment variable
+try:
+    MISTRAL_API_KEY = st.secrets.get("MISTRAL_API_KEY", os.environ.get("MISTRAL_API_KEY", ""))
+except Exception:
+    MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 
 # ─── Page Config ───
 st.set_page_config(
@@ -102,13 +105,13 @@ def load_model(model_path):
     model.eval()
     return model, tokenizer, device
 
-def init_gemini_rephraser(api_key):
-    # No @st.cache_resource here so it forces a fresh load of the new google-genai logic
+def init_mistral_rephraser(api_key):
+    # No @st.cache_resource here so it forces a fresh load of the Mistral logic
     try:
-        from rephrase_with_gemini import BloomsGeminiRephraser
-        return BloomsGeminiRephraser(api_key=api_key)
+        from rephrase_with_mistral import BloomsMistralRephraser
+        return BloomsMistralRephraser(api_key=api_key)
     except Exception as e:
-        st.sidebar.error(f"Failed to load Gemini Rephraser: {e}")
+        st.sidebar.error(f"Failed to load Mistral Rephraser: {e}")
         return None
 
 def extract_text_from_pdf(pdf_file, start_page=0, skip_last=0):
@@ -224,7 +227,7 @@ if source_text:
             else:
                 with st.spinner("Loading AI model..."):
                     model, tokenizer, device = load_model(config["path"])
-                    rephraser = init_gemini_rephraser(GEMINI_API_KEY)
+                    rephraser = init_mistral_rephraser(MISTRAL_API_KEY)
                 
                 chunks = chunk_text(source_text)
                 # Randomly pick chunks to generate from
@@ -237,10 +240,13 @@ if source_text:
                         st.caption(f"Source: {chunk[:100]}...")
                         raw_question = generate_question(model, tokenizer, device, chunk, level_name)
                         
-                        # Use Gemini to rephrase if available
+                        # Use Mistral to rephrase if available
                         if rephraser:
-                            st.caption("_Refining language with Gemini..._")
+                            st.caption("_Refining language with Mistral AI..._")
                             question = rephraser.rephrase(chunk, raw_question)
+                            st.markdown("##### 🤖 Original Output (Local T5 Model):")
+                            st.info(raw_question)
+                            st.markdown("##### ✨ Refined Output (Mistral API):")
                         else:
                             question = raw_question
                         

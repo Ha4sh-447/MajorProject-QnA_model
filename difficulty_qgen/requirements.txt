@@ -10,3 +10,8 @@ pandas
 streamlit
 PyPDF2
 google-generativeai
+google-genai
+mistralai
+flask
+flask-cors
+python-dotenv
